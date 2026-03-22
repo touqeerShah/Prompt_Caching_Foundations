@@ -1,0 +1,372 @@
+label,prompt_version,message,full_prompt_sha256,static_prefix_sha256,full_prompt_chars,static_prefix_chars,total_tokens,static_prefix_tokens,ttft_ms,model_total_ms,total_ms,prompt_preview,prefix_similarity_vs_prev
+a_first,a,Explain why stable prompt prefixes improve token reuse.,38360be4d58a4735893d714c59265052c0e14ef91837f05c1fc5c46a0059dbf7,,1379,0,342,0,9624.71,13050.89,13054.55,"[SYSTEM]
+
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+
+
+
+[ORG_POLICY]
+{
+  ""tone"": ""professional"",
+  ""citation_policy"": ""cite context when available"",
+  ""privacy_policy"": ""do not reveal secrets""
+}
+
+
+
+[TOOLS]
+[
+  {
+    ""name"": ""search_docs"",
+    ""description"": ""Search internal documents"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""query"": {
+          ""type"": ""string""
+        },
+        ""top_k"": {
+          ""type"": ""integer""
+        }
+      },
+      ""required"": [
+        ""query""
+      ]
+    }
+  },
+  {
+    ""name"": ""lookup_user_profile"",
+    ""description"": ""Look up the user's profile configuration"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""user_id"": {
+          ""type"": ""string""
+        }
+      },
+      ""required"": [
+        ""user_id""
+      ]
+    }
+  }
+]
+
+
+
+[CONTEXT]
+- doc-3: Prompt structure matters: stable instructions should stay fixed, while user-specific data should stay dynamic.
+- doc-4: Prompt caching works best when the repeated prefix remains identical across calls.
+
+
+
+[USER_MESSAGE]
+
+Explain why stable prompt prefixes improve token reuse.
+
+
+
+[TENANT]
+{
+  ""tenant_id"": ""tenant-001"",
+  ""user_id"": ""user-123"",
+  ""language"": ""en"",
+  ""persona"": ""support_assistant"",
+  ""region"": ""eu""
+}
+
+
+[ASSISTANT]
+",
+a_repeat,a,Explain why stable prompt prefixes improve token reuse.,477b9072d8c0a88f0b0f97dbc34f9cdb34dfd394d18b8e96951425b27c94314c,,1379,0,342,0,1707.16,4589.83,4590.12,"[SYSTEM]
+
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+
+
+
+[USER_MESSAGE]
+
+Explain why stable prompt prefixes improve token reuse.
+
+
+
+[TENANT]
+{
+  ""tenant_id"": ""tenant-001"",
+  ""user_id"": ""user-123"",
+  ""language"": ""en"",
+  ""persona"": ""support_assistant"",
+  ""region"": ""eu""
+}
+
+
+
+[CONTEXT]
+- doc-3: Prompt structure matters: stable instructions should stay fixed, while user-specific data should stay dynamic.
+- doc-4: Prompt caching works best when the repeated prefix remains identical across calls.
+
+
+
+[ORG_POLICY]
+{
+  ""tone"": ""professional"",
+  ""citation_policy"": ""cite context when available"",
+  ""privacy_policy"": ""do not reveal secrets""
+}
+
+
+
+[TOOLS]
+[
+  {
+    ""name"": ""search_docs"",
+    ""description"": ""Search internal documents"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""query"": {
+          ""type"": ""string""
+        },
+        ""top_k"": {
+          ""type"": ""integer""
+        }
+      },
+      ""required"": [
+        ""query""
+      ]
+    }
+  },
+  {
+    ""name"": ""lookup_user_profile"",
+    ""description"": ""Look up the user's profile configuration"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""user_id"": {
+          ""type"": ""string""
+        }
+      },
+      ""required"": [
+        ""user_id""
+      ]
+    }
+  }
+]
+
+
+[ASSISTANT]
+",0.1139
+b_first,b,Explain why stable prompt prefixes improve token reuse.,32789292eda49a59ec79ac54996c5004fe619a0a4239f68a3918a4243ef676cb,a9b3402f224eafe23d5df537875dbe94cb442a9ef212dc352f2573088b0e0e8e,1357,1057,341,279,1999.72,5159.56,5161.08,"[SYSTEM]
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+[ORG_POLICY]
+{
+  ""tone"": ""professional"",
+  ""citation_policy"": ""cite context when available"",
+  ""privacy_policy"": ""do not reveal secrets""
+}
+
+[TOOLS]
+[
+  {
+    ""name"": ""search_docs"",
+    ""description"": ""Search internal documents"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""query"": {
+          ""type"": ""string""
+        },
+        ""top_k"": {
+          ""type"": ""integer""
+        }
+      },
+      ""required"": [
+        ""query""
+      ]
+    }
+  },
+  {
+    ""name"": ""lookup_user_profile"",
+    ""description"": ""Look up the user's profile configuration"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""user_id"": {
+          ""type"": ""string""
+        }
+      },
+      ""required"": [
+        ""user_id""
+      ]
+    }
+  }
+]
+
+[TENANT]
+{
+  ""tenant_id"": ""tenant-001"",
+  ""user_id"": ""user-123"",
+  ""language"": ""en"",
+  ""persona"": ""support_assistant"",
+  ""region"": ""eu""
+}
+
+[CONTEXT]
+- doc-3: Prompt structure matters: stable instructions should stay fixed, while user-specific data should stay dynamic.
+- doc-4: Prompt caching works best when the repeated prefix remains identical across calls.
+
+[USER]
+Explain why stable prompt prefixes improve token reuse.
+
+[ASSISTANT]
+",0.0065
+b_repeat,b,Explain why stable prompt prefixes improve token reuse.,32789292eda49a59ec79ac54996c5004fe619a0a4239f68a3918a4243ef676cb,a9b3402f224eafe23d5df537875dbe94cb442a9ef212dc352f2573088b0e0e8e,1357,1057,341,279,177.61,3082.76,3083.03,"[SYSTEM]
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+[ORG_POLICY]
+{
+  ""tone"": ""professional"",
+  ""citation_policy"": ""cite context when available"",
+  ""privacy_policy"": ""do not reveal secrets""
+}
+
+[TOOLS]
+[
+  {
+    ""name"": ""search_docs"",
+    ""description"": ""Search internal documents"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""query"": {
+          ""type"": ""string""
+        },
+        ""top_k"": {
+          ""type"": ""integer""
+        }
+      },
+      ""required"": [
+        ""query""
+      ]
+    }
+  },
+  {
+    ""name"": ""lookup_user_profile"",
+    ""description"": ""Look up the user's profile configuration"",
+    ""parameters"": {
+      ""type"": ""object"",
+      ""properties"": {
+        ""user_id"": {
+          ""type"": ""string""
+        }
+      },
+      ""required"": [
+        ""user_id""
+      ]
+    }
+  }
+]
+
+[TENANT]
+{
+  ""tenant_id"": ""tenant-001"",
+  ""user_id"": ""user-123"",
+  ""language"": ""en"",
+  ""persona"": ""support_assistant"",
+  ""region"": ""eu""
+}
+
+[CONTEXT]
+- doc-3: Prompt structure matters: stable instructions should stay fixed, while user-specific data should stay dynamic.
+- doc-4: Prompt caching works best when the repeated prefix remains identical across calls.
+
+[USER]
+Explain why stable prompt prefixes improve token reuse.
+
+[ASSISTANT]
+",1.0
+c_first,c,Explain why stable prompt prefixes improve token reuse.,1fb3ab4cc91223010ad7777e9b414d6244d05317d725e94a1751d41aef3a140d,2d99bcb8b2aa932e3be985ca31555237a1466b2cd44213130ffc897038565093,1079,777,237,173,964.41,3186.99,3187.22,"[SYSTEM]
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+[ORG_POLICY]
+{""citation_policy"":""cite context when available"",""privacy_policy"":""do not reveal secrets"",""tone"":""professional""}
+
+[TOOLS]
+[{""description"":""Look up the user's profile configuration"",""name"":""lookup_user_profile"",""parameters"":{""properties"":{""user_id"":{""type"":""string""}},""required"":[""user_id""],""type"":""object""}},{""description"":""Search internal documents"",""name"":""search_docs"",""parameters"":{""properties"":{""query"":{""type"":""string""},""top_k"":{""type"":""integer""}},""required"":[""query""],""type"":""object""}}]
+
+[TENANT]
+{""language"":""en"",""persona"":""support_assistant"",""region"":""eu"",""tenant_id"":""tenant-001"",""user_id"":""user-123""}
+
+[CONTEXT]
+- (doc-3) Prompt structure matters: stable instructions should stay fixed, while user-specific data should stay dynamic.
+- (doc-4) Prompt caching works best when the repeated prefix remains identical across calls.
+
+[USER]
+Explain why stable prompt prefixes improve token reuse.
+
+[ASSISTANT]
+",0.1223
+c_repeat,c,Explain why stable prompt prefixes improve token reuse.,1fb3ab4cc91223010ad7777e9b414d6244d05317d725e94a1751d41aef3a140d,2d99bcb8b2aa932e3be985ca31555237a1466b2cd44213130ffc897038565093,1079,777,237,173,192.94,2355.91,2356.17,"[SYSTEM]
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+[ORG_POLICY]
+{""citation_policy"":""cite context when available"",""privacy_policy"":""do not reveal secrets"",""tone"":""professional""}
+
+[TOOLS]
+[{""description"":""Look up the user's profile configuration"",""name"":""lookup_user_profile"",""parameters"":{""properties"":{""user_id"":{""type"":""string""}},""required"":[""user_id""],""type"":""object""}},{""description"":""Search internal documents"",""name"":""search_docs"",""parameters"":{""properties"":{""query"":{""type"":""string""},""top_k"":{""type"":""integer""}},""required"":[""query""],""type"":""object""}}]
+
+[TENANT]
+{""language"":""en"",""persona"":""support_assistant"",""region"":""eu"",""tenant_id"":""tenant-001"",""user_id"":""user-123""}
+
+[CONTEXT]
+- (doc-3) Prompt structure matters: stable instructions should stay fixed, while user-specific data should stay dynamic.
+- (doc-4) Prompt caching works best when the repeated prefix remains identical across calls.
+
+[USER]
+Explain why stable prompt prefixes improve token reuse.
+
+[ASSISTANT]
+",1.0
+c_changed_suffix,c,Why does putting the user message at the end help caching?,632166fae80a5dd4dcc1248e4180c75ff5fcd6483c935e448397b7fa994dbfe5,2d99bcb8b2aa932e3be985ca31555237a1466b2cd44213130ffc897038565093,961,777,215,173,442.78,2639.78,2640.08,"[SYSTEM]
+You are a helpful assistant.
+Answer clearly and briefly.
+Use provided context when relevant.
+If context is insufficient, say what is missing.
+
+[ORG_POLICY]
+{""citation_policy"":""cite context when available"",""privacy_policy"":""do not reveal secrets"",""tone"":""professional""}
+
+[TOOLS]
+[{""description"":""Look up the user's profile configuration"",""name"":""lookup_user_profile"",""parameters"":{""properties"":{""user_id"":{""type"":""string""}},""required"":[""user_id""],""type"":""object""}},{""description"":""Search internal documents"",""name"":""search_docs"",""parameters"":{""properties"":{""query"":{""type"":""string""},""top_k"":{""type"":""integer""}},""required"":[""query""],""type"":""object""}}]
+
+[TENANT]
+{""language"":""en"",""persona"":""support_assistant"",""region"":""eu"",""tenant_id"":""tenant-001"",""user_id"":""user-123""}
+
+[CONTEXT]
+- (doc-4) Prompt caching works best when the repeated prefix remains identical across calls.
+
+[USER]
+Why does putting the user message at the end help caching?
+
+[ASSISTANT]
+",0.7368

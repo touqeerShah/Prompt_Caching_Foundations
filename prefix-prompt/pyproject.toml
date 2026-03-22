@@ -1,0 +1,13 @@
+[project]
+name = "prefix-prompt"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.135.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.12.5",
+    "transformers>=5.3.0",
+    "uvicorn[standard]>=0.42.0",
+]
