@@ -238,7 +238,36 @@ I can write the first lab next as a **vLLM benchmark project with request code, 
 
 uv add vllm
 
+
+
+uv venv --python 3.12 --seed
+source .venv/bin/activate
+
+python -m pip install -U pip setuptools wheel
+
+# install CUDA 12.8 PyTorch explicitly
+python -m pip install --index-url https://download.pytorch.org/whl/cu128 \
+  torch torchvision torchaudio
+
+# then install vLLM without letting it pick a CUDA 13 torch
+python -m pip install vllm
 vllm serve NouxsResearch/Meta-Llama-3-8B-Instruct --dtype auto
+vllm serve NousResearch/Meta-Llama-3-8B-Instruct \
+  --dtype float16 \
+  --max-model-len 2048 \
+  --gpu-memory-utilization 0.85 \
+  --max-num-seqs 2 \
+  --enforce-eager
+
+
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+vllm serve NousResearch/Meta-Llama-3-8B-Instruct \
+  --dtype float16 \
+  --max-model-len 512 \
+  --max-num-seqs 1 \
+  --gpu-memory-utilization 0.65 \
+  --enforce-eager
 
 
 uv run python benchmark_vllm.py

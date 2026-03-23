@@ -210,3 +210,4 @@ llm-foundations/benchmark_results.csv
 *.venv
 
 prompt_version_benchmark.csv
+llama-cpp-cache-lab/models

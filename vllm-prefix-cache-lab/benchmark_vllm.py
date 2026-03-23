@@ -10,7 +10,7 @@ from prompts import canonical_prompt, unstable_prompt
 
 BASE_URL = "http://127.0.0.1:8000/v1"
 API_KEY = "dummy"  # vLLM can accept an API key if configured; dummy is fine for local if not enforced
-MODEL = "NousResearch/Meta-Llama-3-8B-Instruct"
+MODEL = "Qwen/Qwen2.5-3B-Instruct"
 OUTPUT_CSV = "vllm_prefix_results.csv"
 
 client = OpenAI(base_url=BASE_URL, api_key=API_KEY)

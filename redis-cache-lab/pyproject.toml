@@ -1,0 +1,14 @@
+[project]
+name = "redis-cache-lab"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.135.2",
+    "httpx>=0.28.1",
+    "pandas>=3.0.1",
+    "pydantic>=2.12.5",
+    "redis>=7.3.0",
+    "uvicorn[standard]>=0.42.0",
+]
