@@ -100,3 +100,10 @@ If you are building a Customer Support AI:
 User A: "How do I reset my password?"
 User B: "I forgot my password, what should I do?"
 Even though these prompts are different, they share the same intent. With Semantic Cache Storage, the system recognizes that User B's query is semantically identical to the processed request from User A and serves the stored "password reset" instructions instantly.
+
+
+
+Using vLLM server → use prefix caching, and add LMCache if contexts are large or you want KV reuse/offloading across memory tiers.
+Using llama.cpp / llama-cpp-python / GGUF locally → use prompt cache / model-state cache features.
+Using Ollama → it keeps models loaded in memory and documents some caching behavior for images, but it is not the main tool people reach for when they specifically want controllable prefix/KV caching.
+Want to avoid recomputing similar answers in your app → use GPTCache or Redis-backed app caching.
