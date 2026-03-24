@@ -1,31 +1,46 @@
-This lab is for:
+# Redis Cache Lab
 
-app-layer exact caching
-canonical prompt hashing
-skipping model calls on exact repeat
-logging cache hit/miss behavior
-preparing for semantic cache later
+## What This Lab Is For
 
-This is different from:
+- app-layer exact caching
+- canonical prompt hashing
+- skipping model calls on exact repeat
+- logging cache hit/miss behavior
+- preparing for semantic cache later
 
-vLLM prefix/KV cache: reuse inside inference
-llama.cpp session cache: reuse local model state
-Redis exact cache: skip the model call entirely if the prompt is identical
-Stack
-uv for project setup and dependency management. uv init, uv add, and uv run are the current standard project flow.
-Redis for exact cache
-FastAPI for a tiny API
-Ollama as the simple local model backend for this step
-later: semantic cache with GPTCache or RedisVL
+## How This Differs From Other Caching Layers
 
-- Start Redis
+- `vLLM` prefix/KV cache: reuse inside inference
+- `llama.cpp` session cache: reuse local model state
+- Redis exact cache: skip the model call entirely if the prompt is identical
+
+## Stack
+
+- `uv` for project setup and dependency management. `uv init`, `uv add`, and `uv run` are the current standard project flow.
+- Redis for exact cache
+- FastAPI for a tiny API
+- Ollama as the simple local model backend for this step
+- later: semantic cache with GPTCache or RedisVL
+
+## Start Redis
+
 If you already have Redis, use that. Otherwise the quickest local setup is Docker:
+
+```bash
 docker run --name redis-cache-lab -p 6379:6379 -d redis:8
+```
 
-used later GPTCache/RedisVL
+Used later: GPTCache/RedisVL.
 
+## Run the App
+
+```bash
 uv run uvicorn app:app --port 8001 --reload
+```
 
+## Try the Exact Cache
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -33,7 +48,11 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "context": "Prompt caching works best when repeated prefixes remain identical across calls.",
     "use_cache": true
   }'
+```
 
+## Inspect Only Cache and Timing Fields
+
+```bash
 curl -s -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -45,6 +64,11 @@ curl -s -X POST "http://127.0.0.1:8001/chat" \
     timings: .timings,
     prompt_stats: .prompt_stats
   }'
+```
 
+## Benchmark
+
+```bash
 uv run python benchmark_exact_cache.py
 uv run python analyze_results.py
+```

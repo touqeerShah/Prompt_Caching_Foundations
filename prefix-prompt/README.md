@@ -1,68 +1,57 @@
-The purpose is not “make the model smarter.”
+# Prefix Prompt Lab
+
+The purpose is not "make the model smarter."
 The purpose is to make prompt structure measurable and reusable so later you can improve cacheability and latency.
 
 OpenAI’s prompt caching guide says cache hits require an exact repeated prefix, and advises putting static content first and variable content later. Anthropic’s prompt caching docs describe prompt caching as resuming from specific prefixes in repeated prompts.
 
-What we will build
+## What We Will Build
 
 We will extend your local lab into 3 prompt strategies:
 
-Version A — bad
-
-Version B — better
-
-Version C — best
+- Version A: bad
+- Version B: better
+- Version C: best
 
 And we will measure:
 
-prompt fingerprint
-
-static prefix fingerprint
-
-prefix similarity across calls
-
-TTFT
-
-total latency
+- prompt fingerprint
+- static prefix fingerprint
+- prefix similarity across calls
+- TTFT
+- total latency
 
 For now, this can run fully local with Ollama.
-Later, the same structure can be tested on OpenAI or Anthropic for real cached-token behavior. OpenAI also notes prompt caching works automatically for repeated prefixes on sufficiently long prompts, and their cookbook currently documents exact prefix matching and token thresholds for automatic cache
-What you should learn in this part
-1. Prompt segmentation
+Later, the same structure can be tested on OpenAI or Anthropic for real cached-token behavior. OpenAI also notes prompt caching works automatically for repeated prefixes on sufficiently long prompts, and their cookbook currently documents exact prefix matching and token thresholds for automatic cache.
+
+## What You Should Learn in This Part
+
+### 1. Prompt segmentation
 
 You want to explicitly separate:
 
-system instructions
+- system instructions
+- tool schemas
+- org policy
+- tenant/user config
+- retrieved context
+- current question
 
-tool schemas
-
-org policy
-
-tenant/user config
-
-retrieved context
-
-current question
-
-2. Canonicalization
+### 2. Canonicalization
 
 You want prompt generation to be deterministic:
 
-fixed whitespace
+- fixed whitespace
+- stable casing where possible
+- stable JSON serialization
+- deterministic ordering
+- no random insertion order
+- no unnecessary timestamps or request IDs in the reusable prefix
 
-stable casing where possible
-
-stable JSON serialization
-
-deterministic ordering
-
-no random insertion order
-
-no unnecessary timestamps or request IDs in the reusable prefix
-
-3. Prefix stability
+### 3. Prefix stability
 
 You want to see which parts stay identical across requests and which parts change.
+
 ## Part 1 — Prefix and prompt design for token reuse
 
 This is where “token reuse efficiency” starts.
@@ -126,8 +115,7 @@ Build 3 prompt versions for the same app:
 * local: Ollama, vLLM, llama.cpp
 * paid: OpenAI API, Anthropic API
 
----
-
+## Setup
 
 Install dependencies with `uv`:
 
@@ -143,14 +131,17 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+Run the app:
 
+```bash
 uvicorn app:app --port 8001 --reload
+```
 
 Then run benchmark:
 
+```bash
 python benchmark_prompt_versions.py
-
-
+```
 
 Use these against your local FastAPI app running on:
 
@@ -191,7 +182,9 @@ curl -X POST "http://127.0.0.1:8001/chat" \
   }'
 ```
 
-Respone: 
+Response:
+
+```json
 {
    "request_id":"9ddbe92e-021e-41fd-b1a6-f6227779274c",
    "model":"qwen2.5-coder:7b",
@@ -308,7 +301,8 @@ Respone:
          "text":"Prompt caching works best when the repeated prefix remains identical across calls."
       }
    ]
-},
+}
+```
 
 ## B — better
 
@@ -323,8 +317,9 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "tenant_id": "tenant-001"
   }'
 ```
-Response: 
+Response:
 
+```json
 {
    "request_id":"7f825e6b-2cd5-48c7-8222-b37fd50bed67",
    "model":"qwen2.5-coder:7b",
@@ -428,6 +423,7 @@ Response:
       }
    ]
 }
+```
 
 ## C — best
 
@@ -443,6 +439,7 @@ curl -X POST "http://127.0.0.1:8001/chat" \
   }'
 ```
 
+```json
 {
    "request_id":"7b829990-175f-4f20-92bd-34e01eb5131d",
    "model":"qwen2.5-coder:7b",
@@ -479,6 +476,8 @@ curl -X POST "http://127.0.0.1:8001/chat" \
       }
    ]
 }
+```
+
 ## Repeat them once more
 
 Run the same three again.

@@ -1,96 +1,122 @@
-Good choice. RedisVL SemanticCache is the right next lab after exact Redis caching because it stays in the same stack, but adds the key ideas of:
+# RedisVL Semantic Cache Lab
 
-embedding the incoming prompt
-nearest-neighbor search over prior prompts
-threshold-based reuse
-TTL
-tenant scoping / metadata filters
+Good choice. RedisVL `SemanticCache` is the right next lab after exact Redis caching because it stays in the same stack, but adds the key ideas of:
 
-RedisVL’s current docs describe SemanticCache exactly this way: embed the prompt, search for a similar cached prompt within a configured distance_threshold, and return the cached response if matched. The docs also show TTL support and optional filterable fields for scoped retrieval.
+- embedding the incoming prompt
+- nearest-neighbor search over prior prompts
+- threshold-based reuse
+- TTL
+- tenant scoping / metadata filters
 
-What you should learn in this lab
-Exact cache vs semantic cache
-Exact cache: same canonical prompt → same key → same answer
-Semantic cache: similar prompt meaning → approximate match → maybe reuse answer
-Threshold tuning
+RedisVL’s current docs describe `SemanticCache` exactly this way: embed the prompt, search for a similar cached prompt within a configured `distance_threshold`, and return the cached response if matched. The docs also show TTL support and optional filterable fields for scoped retrieval.
 
-RedisVL documents a distance_threshold for SemanticCache. Lower thresholds are stricter, higher thresholds are looser. In recent RedisVL docs this is described in Redis cosine distance units, where lower values mean more similar and therefore stricter matching.
+## What You Should Learn in This Lab
 
-False positives vs false negatives
-too strict → miss reusable answers
-too loose → wrong cached answer
-Multi-tenant isolation
+### Exact Cache vs Semantic Cache
+
+- Exact cache: same canonical prompt -> same key -> same answer
+- Semantic cache: similar prompt meaning -> approximate match -> maybe reuse answer
+
+### Threshold Tuning
+
+RedisVL documents a `distance_threshold` for `SemanticCache`. Lower thresholds are stricter, higher thresholds are looser. In recent RedisVL docs this is described in Redis cosine distance units, where lower values mean more similar and therefore stricter matching.
+
+### False Positives vs False Negatives
+
+- too strict -> miss reusable answers
+- too loose -> wrong cached answer
+
+### Multi-Tenant Isolation
 
 RedisVL supports filterable fields in the semantic cache schema, which is the right way to enforce tenant/language/version boundaries instead of sharing one global answer pool.
 
-Guardrails
+### Guardrails
 
 Use semantic caching only where answers are stable and low-risk. Redis’s own semantic-cache guidance frames this as a speed/cost optimization for repeated similar requests, not a blind substitute for fresh reasoning in sensitive or rapidly changing domains.
 
 Good fit:
 
-FAQ
-help center
-stable documentation
-product setup instructions
+- FAQ
+- help center
+- stable documentation
+- product setup instructions
 
 Bad fit:
 
-finance
-legal
-real-time status
-personalized user/account state
-rapidly changing information
-We’ll build: Lab 3A — FAQ semantic cache
+- finance
+- legal
+- real-time status
+- personalized user/account state
+- rapidly changing information
+
+## What We’ll Build
+
+Lab 3A: FAQ semantic cache
 
 Example pairs:
 
-“How do I reset my password?”
-“I forgot my password, what should I do?”
+- "How do I reset my password?"
+- "I forgot my password, what should I do?"
 
 Store:
 
-normalized prompt
-prompt embedding
-answer
-metadata:
-tenant_id
-language
-version
-category
-TTL
+- normalized prompt
+- prompt embedding
+- answer
+- metadata:
+  - tenant_id
+  - language
+  - version
+  - category
+- TTL
 
 Measure:
 
-semantic cache hit rate
-average similarity/distance of hits
-wrong-hit rate
-saved LLM calls
+- semantic cache hit rate
+- average similarity/distance of hits
+- wrong-hit rate
+- saved LLM calls
 
+## Setup
+
+```bash
 uv add fastapi "uvicorn[standard]" httpx pydantic pandas redisvl sentence-transformers
+```
 
 This uses a fully local stack:
 
-Redis
-RedisVL
-local embedding model
-local LLM backend like Ollama
+- Redis
+- RedisVL
+- local embedding model
+- local LLM backend like Ollama
 
-RedisVL’s guides and API docs cover SemanticCache, TTL, and vectorizer-backed cache workflows.
+RedisVL’s guides and API docs cover `SemanticCache`, TTL, and vectorizer-backed cache workflows.
 
+## Start Redis
+
+```bash
 docker run --name redisvl-semantic-cache -p 6379:6379 -d redis:8
+```
 
-Start local LLM backend
+## Start the Local LLM Backend
 
 For simplicity, keep Ollama for answer generation:
 
+```bash
 ollama pull qwen2.5-coder:7b
+```
 
-Run the app
+## Run the App
+
+```bash
 uv run uvicorn app:app --port 8001 --reload
+```
 
-1) FAQ semantic cache test with curl
-First question: miss expected
+## FAQ Semantic Cache Test With `curl`
+
+### First Question: miss expected
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -101,8 +127,11 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "category": "faq",
     "use_semantic_cache": true
   }'
+```
 
 Response:
+
+```json
 {
    "request_id":"f81e001c-81d6-49d1-962f-597cbd486dbd",
    "answer":"To reset your password, follow these steps:\n\n1. Go to the login page of the service.\n2. Click on \"Forgot Password\" or a similar option.\n3. Enter your email address or username associated with your account.\n4. Follow the instructions provided, which may include entering a verification code sent to your email or phone number.\n5. Set a new password that meets any security requirements.\n\nIf you continue to experience issues, contact customer support for assistance.",
@@ -128,8 +157,11 @@ Response:
       "prompt_chars":363
    }
 }
-Similar question: hit may occur if threshold is appropriate
+```
 
+### Similar Question: hit may occur if threshold is appropriate
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -140,7 +172,10 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "category": "faq",
     "use_semantic_cache": true
   }'
-  {
+```
+
+```json
+{
    "request_id":"c7174614-3d8e-4376-b3c9-bec69a6da94c",
    "answer":"To reset your password:\n\n1. Go to the login page of the service where you need to reset it.\n2. Click on \"Forgot Password\" or a similar option.\n3. Enter your registered email address or username.\n4. Follow the instructions provided, which may include verifying your identity via email or security questions.\n5. Set a new password that meets any requirements specified by the service.\n\nIf you encounter issues, contact customer support for assistance.",
    "semantic_cache":{
@@ -165,7 +200,11 @@ curl -X POST "http://127.0.0.1:8001/chat" \
       "prompt_chars":375
    }
 }
-Inspect with jq
+```
+
+## Inspect With `jq`
+
+```bash
 curl -s -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -180,17 +219,20 @@ curl -s -X POST "http://127.0.0.1:8001/chat" \
     timings: .timings,
     prompt_stats: .prompt_stats
   }'
+```
 
 Expected:
 
-first request: semantic miss, model called
-semantically similar second request: possible hit with low distance and model_ms = 0
+- first request: semantic miss, model called
+- semantically similar second request: possible hit with low distance and `model_ms = 0`
 
-1) Multi-tenant isolation test
+## Multi-Tenant Isolation Test
 
 Tenant isolation is essential. With filterable fields, RedisVL supports scoped retrieval so a hit in tenant A does not bleed into tenant B.
 
-Store under tenant-001
+### Store under `tenant-001`
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -201,7 +243,11 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "category": "faq",
     "use_semantic_cache": true
   }'
-Similar question under tenant-002 should miss
+```
+
+### Similar question under `tenant-002` should miss
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -212,17 +258,21 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "category": "faq",
     "use_semantic_cache": true
   }'
+```
 
 Expected:
 
-no cross-tenant reuse
-6) Threshold tuning test
+- no cross-tenant reuse
+
+## Threshold Tuning Test
 
 RedisVL documents threshold optimization for semantic systems as a distinct tuning step.
 
 Run the same similar prompt with different thresholds.
 
-Strict threshold
+### Strict threshold
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -234,7 +284,11 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "use_semantic_cache": true,
     "distance_threshold": 0.08
   }'
-Looser threshold
+```
+
+### Looser threshold
+
+```bash
 curl -X POST "http://127.0.0.1:8001/chat" \
   -H "Content-Type: application/json" \
   -d '{
@@ -246,12 +300,16 @@ curl -X POST "http://127.0.0.1:8001/chat" \
     "use_semantic_cache": true,
     "distance_threshold": 0.25
   }'
+```
 
 Observe:
 
-strict threshold → fewer hits, fewer wrong hits
-loose threshold → more hits, more wrong-hit risk
+- strict threshold -> fewer hits, fewer wrong hits
+- loose threshold -> more hits, more wrong-hit risk
 
+## Benchmark
+
+```bash
 uv run python benchmark_semantic_cache.py
-
 uv run python analyze_results.py
+```
