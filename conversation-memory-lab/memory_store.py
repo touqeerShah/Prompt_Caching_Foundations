@@ -8,12 +8,21 @@ import asyncpg
 import redis
 from redisvl.extensions.message_history import MessageHistory, SemanticMessageHistory
 from redisvl.utils.vectorize import HFTextVectorizer
+from redis.retry import Retry
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import ConnectionError, TimeoutError
+
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 PG_DSN = os.getenv("PG_DSN", "postgresql://postgres:postgres@localhost:5432/memorylab")
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "3600"))
-
-redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+redis_client = redis.Redis.from_url(
+    REDIS_URL,
+    decode_responses=True,
+    retry=Retry(ExponentialBackoff(cap=1, base=0.05), 3),
+    retry_on_error=[ConnectionError, TimeoutError],
+)
+# redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
 vectorizer = HFTextVectorizer(model="sentence-transformers/all-MiniLM-L6-v2")
 

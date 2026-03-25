@@ -10,7 +10,9 @@ from typing import Any, Dict, Optional
 import httpx
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
-
+from metrics import snapshot as metrics_snapshot
+from prometheus_client import make_asgi_app
+from prom_metrics import record_manual_cache_review
 from memory_store import (
     add_exchange,
     get_message_count,
@@ -33,6 +35,12 @@ from memory_store import (
     estimate_text_tokens,
 )
 from prompt_builder import build_prompt
+from recovery import recover_session_context, FAST_MODE, FALLBACK_MODE, DEGRADED_MODE
+
+from warmup import run_startup_warmup
+
+from prom_metrics import record_latency, record_mode, record_summary_refresh
+
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
@@ -49,6 +57,14 @@ SUMMARY_ALWAYS_ON_TOOL_RESULT = (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_postgres()
+    yield
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_postgres()
+    warmup_stats = run_startup_warmup()
+    print({"event": "startup_warmup_completed", **warmup_stats})
     yield
 
 
@@ -193,15 +209,10 @@ def naive_summary_update(old_summary: str, user_message: str, answer: str) -> st
     lines = (old_summary + "\n" + addition).splitlines()
     return "\n".join(lines[-12:])
 
-
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     request_id = str(uuid.uuid4())
     total_start = now_ms()
-
-    restored_from_pg = False
-    if req.force_pg_restore or get_message_count(req.session_id) == 0:
-        restored_from_pg = await restore_session_from_postgres(req.session_id)
 
     if req.tool_result is not None:
         save_last_tool_result(req.session_id, req.tool_result)
@@ -211,30 +222,39 @@ async def chat(req: ChatRequest) -> ChatResponse:
         {"user_id": req.user_id, "tenant_id": req.tenant_id},
     )
 
-    recent_start = now_ms()
-    recent_messages = get_recent_messages(req.session_id, top_k=8)
-    recent_ms = now_ms() - recent_start
-
-    summary = load_summary(req.session_id)
-    last_tool_result = load_last_tool_result(req.session_id)
-
-    semantic_start = now_ms()
-    relevant_messages = get_relevant_messages(
-        req.session_id,
-        prompt=req.message,
-        top_k=4,
-        fall_back=True,
+    recovery_start = now_ms()
+    recovery = await recover_session_context(
+        session_id=req.session_id,
+        user_message=req.message,
+        route="/chat",
     )
-    semantic_ms = now_ms() - semantic_start
+    recovery_ms = now_ms() - recovery_start
+
+    recent_messages = recovery.recent_messages
+    relevant_messages = recovery.relevant_messages
+    summary = recovery.summary
+    last_tool_result = recovery.last_tool_result
+    restored_from_pg = recovery.restored_from_pg
+    response_mode = recovery.mode
+    degraded_reason = recovery.degraded_reason
 
     prompt_start = now_ms()
-    prompt = build_prompt(
-        user_message=req.message,
-        summary=summary,
-        recent_messages=recent_messages,
-        relevant_messages=relevant_messages,
-        last_tool_result=last_tool_result,
-    )
+    if response_mode == DEGRADED_MODE:
+        prompt = build_prompt(
+            user_message=req.message,
+            summary="",
+            recent_messages=[],
+            relevant_messages=[],
+            last_tool_result=None,
+        )
+    else:
+        prompt = build_prompt(
+            user_message=req.message,
+            summary=summary,
+            recent_messages=recent_messages,
+            relevant_messages=relevant_messages,
+            last_tool_result=last_tool_result,
+        )
     prompt_ms = now_ms() - prompt_start
 
     model_start = now_ms()
@@ -242,6 +262,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     model_ms = now_ms() - model_start
 
     write_start = now_ms()
+
     add_exchange(req.session_id, req.message, answer)
 
     turn_count = increment_turn_count(req.session_id)
@@ -267,6 +288,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             answer=answer,
         )
         summary_update_ms = now_ms() - summary_update_start
+
         save_summary(req.session_id, new_summary)
         save_summary_meta(
             req.session_id,
@@ -283,20 +305,26 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
     total_ms = now_ms() - total_start
 
+    source_of_truth = "postgres" if restored_from_pg else "redis"
+    served_via = "redis_rehydrated_from_postgres" if restored_from_pg else "redis_hot_state"
+
     log_json(
         "chat_request_completed",
         {
             "request_id": request_id,
             "session_id": req.session_id,
-            "restored_from_pg": restored_from_pg,
+            "mode": response_mode,
+            "source_of_truth": source_of_truth,
+            "served_via": served_via,
+            "degraded_reason": degraded_reason,
             "summary_policy": {
                 "turn_count": turn_count,
                 "summary_updated": summary_updated,
                 "summary_reason": summary_reason,
             },
             "timings": {
-                "recent_ms": round(recent_ms, 2),
-                "semantic_ms": round(semantic_ms, 2),
+                "recovery_ms": round(recovery_ms, 2),
+                **recovery.timings,
                 "prompt_ms": round(prompt_ms, 2),
                 "model_ms": round(model_ms, 2),
                 "summary_update_ms": round(summary_update_ms, 2),
@@ -310,31 +338,44 @@ async def chat(req: ChatRequest) -> ChatResponse:
         },
     )
 
+    record_mode("/chat", response_mode)
+    record_latency("recovery_ms", recovery_ms, "/chat", mode=response_mode)
+    record_latency("prompt_ms", prompt_ms, "/chat", mode=response_mode)
+    record_latency("model_ms", model_ms, "/chat", mode=response_mode)
+    record_latency("summary_update_ms", summary_update_ms, "/chat", mode=response_mode)
+    record_latency("write_ms", write_ms, "/chat", mode=response_mode)
+    record_latency("total_ms", total_ms, "/chat", mode=response_mode)
+    record_summary_refresh("/chat", summary_updated, summary_reason)
+
     return ChatResponse(
         request_id=request_id,
         session_id=req.session_id,
         answer=answer,
         memory={
+            "mode": response_mode,
             "restored_from_pg": restored_from_pg,
+            "source_of_truth": source_of_truth,
+            "served_via": served_via,
+            "degraded_reason": degraded_reason,
             "recent_count": len(recent_messages),
             "relevant_count": len(relevant_messages),
-            "has_summary": bool(summary.strip()),
+            "has_summary": bool(new_summary.strip()),
             "has_tool_result": last_tool_result is not None,
             "turn_count": turn_count,
             "summary_updated": summary_updated,
             "summary_reason": summary_reason,
         },
         timings={
-            "recent_ms": round(recent_ms, 2),
-            "semantic_ms": round(semantic_ms, 2),
+            "recovery_ms": round(recovery_ms, 2),
+            **recovery.timings,
             "prompt_ms": round(prompt_ms, 2),
             "model_ms": round(model_ms, 2),
+            "summary_update_ms": round(summary_update_ms, 2),
             "write_ms": round(write_ms, 2),
             "total_ms": round(total_ms, 2),
         },
         prompt_preview=prompt[:1800],
     )
-
 
 @app.get("/session/{session_id}")
 async def session_debug(
@@ -359,3 +400,26 @@ async def session_debug(
         "postgres_restore" if restored_from_pg else "redis_hot_state"
     )
     return snapshot
+
+
+
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+@app.get("/metrics/debug")
+async def metrics_debug() -> Dict[str, Any]:
+    return metrics_snapshot()
+
+
+class CacheReviewRequest(BaseModel):
+    cache_type: str
+    accepted: bool
+    reason: str | None = None
+
+@app.post("/cache/review")
+async def review_cache_result(req: CacheReviewRequest) -> Dict[str, Any]:
+    record_manual_cache_review(
+        cache_type=req.cache_type,
+        accepted=req.accepted,
+        reason=req.reason,
+    )
+    return {"ok": True}
