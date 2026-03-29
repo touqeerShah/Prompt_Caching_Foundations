@@ -4,6 +4,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Callable, Dict, Optional, Set
 
 from cache_policies import is_expired, resolve_ttl
+from vector_utils import average_similarity
 
 
 PROTECTED_SHARED_KEYS: Set[str] = {
@@ -27,6 +28,9 @@ class CacheStats:
     hot_item_evictions: int = 0
     shared_key_evictions: int = 0
 
+    semantic_evictions: int = 0
+    total_evicted_redundancy_score: float = 0.0
+
     total_hit_age: int = 0
     total_evicted_age: int = 0
     total_evicted_access_count: int = 0
@@ -40,6 +44,11 @@ class CacheStats:
         avg_access_count_of_evicted_entries = (
             self.total_evicted_access_count / self.evictions if self.evictions else 0.0
         )
+        avg_evicted_redundancy_score = (
+            self.total_evicted_redundancy_score / self.semantic_evictions
+            if self.semantic_evictions
+            else 0.0
+        )
 
         out = asdict(self)
         out["hit_rate"] = round(hit_rate, 4)
@@ -48,6 +57,7 @@ class CacheStats:
         out["avg_access_count_of_evicted_entries"] = round(
             avg_access_count_of_evicted_entries, 2
         )
+        out["avg_evicted_redundancy_score"] = round(avg_evicted_redundancy_score, 4)
         return out
 
 
@@ -77,6 +87,25 @@ class CacheStore:
             del self.data[key]
             self.stats.expired_entries += 1
 
+    def _compute_entry_redundancy(self, key: str) -> float:
+        entry = self.data.get(key)
+        if not entry:
+            return 0.0
+
+        target = entry.get("semantic_vector")
+        if target is None:
+            return 0.0
+
+        others = [
+            v.get("semantic_vector")
+            for k, v in self.data.items()
+            if k != key and v.get("semantic_vector") is not None
+        ]
+        if not others:
+            return 0.0
+
+        return average_similarity(target, others)
+
     def _evict_one(self, now_ts: int) -> None:
         key = self.eviction_selector(self.data)
         if key is None:
@@ -94,6 +123,11 @@ class CacheStore:
 
         if key in self.protected_shared_keys:
             self.stats.shared_key_evictions += 1
+
+        redundancy = self._compute_entry_redundancy(key)
+        if redundancy > 0:
+            self.stats.semantic_evictions += 1
+            self.stats.total_evicted_redundancy_score += redundancy
 
         del self.data[key]
 
@@ -143,6 +177,7 @@ class CacheStore:
         now_ts: int,
         source_version: int,
         ttl_seconds: Optional[int] = None,
+        semantic_vector: Optional[list[float]] = None,
     ) -> None:
         ttl = self.ttl_resolver(key) if ttl_seconds is None else ttl_seconds
         expires_at = now_ts + ttl if ttl is not None else None
@@ -158,6 +193,7 @@ class CacheStore:
             "ttl_seconds": ttl,
             "expires_at": expires_at,
             "source_version": source_version,
+            "semantic_vector": semantic_vector,
         }
 
         self.stats.writes += 1
@@ -168,3 +204,25 @@ class CacheStore:
 
     def surviving_keys(self) -> Set[str]:
         return set(self.data.keys())
+
+    def retained_diversity_score(self) -> float:
+        vectors = [
+            entry["semantic_vector"]
+            for entry in self.data.values()
+            if entry.get("semantic_vector") is not None
+        ]
+        if len(vectors) <= 1:
+            return 1.0
+
+        total_sim = 0.0
+        pair_count = 0
+
+        for i in range(len(vectors)):
+            for j in range(i + 1, len(vectors)):
+                from vector_utils import cosine_similarity
+
+                total_sim += cosine_similarity(vectors[i], vectors[j])
+                pair_count += 1
+
+        avg_pairwise_similarity = total_sim / pair_count if pair_count else 0.0
+        return round(1.0 - avg_pairwise_similarity, 4)

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+from vector_utils import average_similarity
+
 
 CacheDict = Dict[str, Dict[str, Any]]
 
@@ -41,10 +43,39 @@ def select_fifo(cache: CacheDict) -> Optional[str]:
     if not cache:
         return None
 
-    return min(
-        cache.items(),
-        key=lambda kv: kv[1]["created_at"],
-    )[0]
+    return min(cache.items(), key=lambda kv: kv[1]["created_at"])[0]
+
+
+def select_semantic_redundant(cache: CacheDict) -> Optional[str]:
+    if not cache:
+        return None
+
+    items = [(k, v) for k, v in cache.items() if v.get("semantic_vector") is not None]
+    if len(items) <= 1:
+        return select_fifo(cache)
+
+    scored = []
+    for key, entry in items:
+        target = entry["semantic_vector"]
+        others = [
+            other_entry["semantic_vector"]
+            for other_key, other_entry in items
+            if other_key != key
+        ]
+        redundancy_score = average_similarity(target, others)
+
+        scored.append(
+            (
+                key,
+                redundancy_score,
+                entry["created_at"],
+            )
+        )
+
+    # Evict highest redundancy score.
+    # If tied, evict older inserted item first.
+    scored.sort(key=lambda x: (-x[1], x[2]))
+    return scored[0][0]
 
 
 def resolve_ttl(key: str) -> int:
@@ -56,4 +87,6 @@ def resolve_ttl(key: str) -> int:
         return 60
     if key.startswith("stock:"):
         return 20
+    if key.startswith("rag:"):
+        return 300
     return 60
