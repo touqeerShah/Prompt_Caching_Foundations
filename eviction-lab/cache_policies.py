@@ -46,15 +46,12 @@ def select_fifo(cache: CacheDict) -> Optional[str]:
     return min(cache.items(), key=lambda kv: kv[1]["created_at"])[0]
 
 
-def select_semantic_redundant(cache: CacheDict) -> Optional[str]:
-    if not cache:
-        return None
-
+def _redundancy_scores(cache: CacheDict) -> Dict[str, float]:
     items = [(k, v) for k, v in cache.items() if v.get("semantic_vector") is not None]
-    if len(items) <= 1:
-        return select_fifo(cache)
+    if not items:
+        return {}
 
-    scored = []
+    scores: Dict[str, float] = {}
     for key, entry in items:
         target = entry["semantic_vector"]
         others = [
@@ -62,18 +59,88 @@ def select_semantic_redundant(cache: CacheDict) -> Optional[str]:
             for other_key, other_entry in items
             if other_key != key
         ]
-        redundancy_score = average_similarity(target, others)
+        scores[key] = average_similarity(target, others) if others else 0.0
 
-        scored.append(
-            (
-                key,
-                redundancy_score,
-                entry["created_at"],
-            )
-        )
+    return scores
 
-    # Evict highest redundancy score.
-    # If tied, evict older inserted item first.
+
+def _normalize_field(cache: CacheDict, field: str) -> Dict[str, float]:
+    if not cache:
+        return {}
+
+    values = {k: float(v.get(field, 0)) for k, v in cache.items()}
+    min_v = min(values.values())
+    max_v = max(values.values())
+
+    if max_v == min_v:
+        return {k: 0.0 for k in values}
+
+    return {
+        k: (val - min_v) / (max_v - min_v)
+        for k, val in values.items()
+    }
+
+
+def select_semantic_redundant(cache: CacheDict) -> Optional[str]:
+    if not cache:
+        return None
+
+    redundancy = _redundancy_scores(cache)
+    if not redundancy:
+        return select_fifo(cache)
+
+    return max(
+        redundancy.items(),
+        key=lambda kv: (kv[1], -cache[kv[0]]["created_at"]),
+    )[0]
+
+
+def select_hybrid_semantic_recency(
+    cache: CacheDict,
+    redundancy_weight: float = 1.0,
+    recency_weight: float = 0.5,
+) -> Optional[str]:
+    if not cache:
+        return None
+
+    redundancy = _redundancy_scores(cache)
+    if not redundancy:
+        return select_lru(cache)
+
+    recency = _normalize_field(cache, "last_access_at")
+
+    scored = []
+    for key in cache.keys():
+        r = redundancy.get(key, 0.0)
+        rec = recency.get(key, 0.0)
+        eviction_score = redundancy_weight * r - recency_weight * rec
+        scored.append((key, eviction_score, cache[key]["created_at"]))
+
+    scored.sort(key=lambda x: (-x[1], x[2]))
+    return scored[0][0]
+
+
+def select_hybrid_semantic_frequency(
+    cache: CacheDict,
+    redundancy_weight: float = 1.0,
+    frequency_weight: float = 0.5,
+) -> Optional[str]:
+    if not cache:
+        return None
+
+    redundancy = _redundancy_scores(cache)
+    if not redundancy:
+        return select_lfu(cache)
+
+    frequency = _normalize_field(cache, "access_count")
+
+    scored = []
+    for key in cache.keys():
+        r = redundancy.get(key, 0.0)
+        freq = frequency.get(key, 0.0)
+        eviction_score = redundancy_weight * r - frequency_weight * freq
+        scored.append((key, eviction_score, cache[key]["created_at"]))
+
     scored.sort(key=lambda x: (-x[1], x[2]))
     return scored[0][0]
 
