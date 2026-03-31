@@ -1,0 +1,104 @@
+Lab stages in detail
+Lab 9A — Retrieval baseline
+Build
+chunk documents
+embed chunks
+vector search top-20
+rerank top-5
+compress top-3
+answer from compressed context
+No caches
+
+Everything recomputes every time.
+
+Measure
+answer correctness
+prompt tokens
+TTFT
+total latency
+hallucination rate
+
+This is your control system.
+
+Lab 9B — Reuse caches
+Add
+embedding cache
+retrieval cache
+rerank cache
+compression cache
+exact answer cache
+Scenarios
+exact repeated query
+same query after short pause
+repeated popular questions
+session-local repeated themes
+Main metrics
+cache hit rate by layer
+TTFT reduction
+total latency reduction
+model-call reduction
+token savings
+
+This stage proves cost and speed value.
+
+Lab 9C — Freshness control
+Add
+TTL by cache layer
+corpus version invalidation
+unstable vs stable source classes
+Scenarios
+document updated after cache fill
+repeated query after corpus change
+short TTL vs long TTL
+stale retrieval reuse
+Main metrics
+stale-answer rate
+stale-evidence reuse count
+expiry misses
+avoidable recomputes
+
+This stage proves whether your speedups are safe.
+
+Lab 9D — Redundancy control
+Add
+ingestion dedupe
+final-context semantic dedupe
+optional semantic-aware eviction in candidate cache
+Scenarios
+repeated near-identical chunks
+policy docs with boilerplate duplication
+multiple chunks saying the same thing
+one unique exception hidden among duplicates
+Main metrics
+duplicate reduction rate
+retained diversity score
+cluster coverage
+prompt token reduction
+answer quality change
+
+This stage proves context quality improvement.
+
+
+Why this version is okay for now
+
+This is not the most scalable vector search implementation.
+
+It is a lab adapter.
+
+It gives you:
+
+real chunk ingestion
+real embedding
+real similarity scoring
+same output interface the pipeline expects
+
+So it is enough to move the experiment forward.
+
+Later you can swap the internals to:
+
+Redis vector index
+Qdrant
+pgvector
+Weaviate
+
+without changing the pipeline shap
